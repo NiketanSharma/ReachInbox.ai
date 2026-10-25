@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { SchedulePayload, User, EmailJob, SenderProfile, SlackStatus } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -21,8 +20,8 @@ apiClient.interceptors.request.use((config) => {
 
 export const api = {
   // Auth
-  async loginWithGoogle(credential?: string, profile?: Partial<User>) {
-    const response = await apiClient.post<{ success: boolean; token: string; user: User }>('/auth/google', {
+  async loginWithGoogle(credential, profile) {
+    const response = await apiClient.post('/auth/google', {
       credential,
       ...profile,
     });
@@ -33,7 +32,7 @@ export const api = {
   },
 
   async getCurrentUser() {
-    const response = await apiClient.get<{ user: User }>('/auth/me');
+    const response = await apiClient.get('/auth/me');
     return response.data.user;
   },
 
@@ -42,51 +41,48 @@ export const api = {
   },
 
   // Emails
-  async getScheduledEmails(params?: { page?: number; limit?: number; search?: string }) {
-    const response = await apiClient.get<{ emails: EmailJob[]; total: number }>('/emails/scheduled', {
+  async getScheduledEmails(params) {
+    const response = await apiClient.get('/emails/scheduled', {
       params,
     });
     return response.data;
   },
 
-  async getSentEmails(params?: { page?: number; limit?: number; search?: string }) {
-    const response = await apiClient.get<{ emails: EmailJob[]; total: number }>('/emails/sent', {
+  async getSentEmails(params) {
+    const response = await apiClient.get('/emails/sent', {
       params,
     });
     return response.data;
   },
 
-  async scheduleEmails(payload: SchedulePayload) {
-    const response = await apiClient.post<{ success: boolean; batchId: string; totalScheduled: number; emails: EmailJob[] }>(
-      '/emails/schedule',
-      payload
-    );
+  async scheduleEmails(payload) {
+    const response = await apiClient.post('/emails/schedule', payload);
     return response.data;
   },
 
-  async cancelScheduledEmail(id: string) {
+  async cancelScheduledEmail(id) {
     const response = await apiClient.delete(`/emails/${id}`);
     return response.data;
   },
 
   async getSenders() {
-    const response = await apiClient.get<{ senders: SenderProfile[] }>('/emails/senders');
+    const response = await apiClient.get('/emails/senders');
     return response.data.senders;
   },
 
   // Slack
   async getSlackStatus() {
-    const response = await apiClient.get<SlackStatus>('/slack/status');
+    const response = await apiClient.get('/slack/status');
     return response.data;
   },
 
-  async connectSlackWebhook(webhookUrl: string, channel?: string) {
+  async connectSlackWebhook(webhookUrl, channel) {
     const response = await apiClient.post('/slack/webhook', { webhookUrl, channel });
     return response.data;
   },
 
   async testSlackNotification() {
-    const response = await apiClient.post<{ success: boolean; message: string }>('/slack/test');
+    const response = await apiClient.post('/slack/test');
     return response.data;
   },
 
@@ -96,12 +92,12 @@ export const api = {
   },
 
   // Rate Limiter
-  async getRateLimitStatus(senderEmail: string) {
+  async getRateLimitStatus(senderEmail) {
     const response = await apiClient.get(`/emails/ratelimit/${encodeURIComponent(senderEmail)}`);
     return response.data;
   },
 
-  async resetRateLimit(senderEmail: string) {
+  async resetRateLimit(senderEmail) {
     const response = await apiClient.post('/emails/ratelimit/reset', { senderEmail });
     return response.data;
   },

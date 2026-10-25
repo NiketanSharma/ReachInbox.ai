@@ -1,18 +1,8 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { CheckCircle2, XCircle, ExternalLink, RefreshCw, Search, Inbox } from 'lucide-react';
-import { EmailJob } from '../types';
 
-interface SentEmailsTableProps {
-  emails: EmailJob[];
-  isLoading: boolean;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  onRefresh: () => void;
-  onComposeClick: () => void;
-}
-
-export const SentEmailsTable: React.FC<SentEmailsTableProps> = ({
+export const SentEmailsTable = ({
   emails,
   isLoading,
   searchQuery,

@@ -1,31 +1,23 @@
 import React, { useState } from 'react';
 import { X, MessageSquare, Send, CheckCircle, Unlink, Link2, ExternalLink } from 'lucide-react';
-import { SlackStatus } from '../types';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
 
-interface SlackModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  slackStatus: SlackStatus | null;
-  onStatusUpdated: () => void;
-}
-
-export const SlackModal: React.FC<SlackModalProps> = ({
+export const SlackModal = ({
   isOpen,
   onClose,
   slackStatus,
   onStatusUpdated,
 }) => {
   const { success, error, info } = useToast();
-  const [webhookUrl, setWebhookUrl] = useState<string>('');
-  const [channelName, setChannelName] = useState<string>('#reachinbox-alerts');
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [isTesting, setIsTesting] = useState<boolean>(false);
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [channelName, setChannelName] = useState('#reachinbox-alerts');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleConnectWebhook = async (e: React.FormEvent) => {
+  const handleConnectWebhook = async (e) => {
     e.preventDefault();
     if (!webhookUrl || !webhookUrl.startsWith('https://hooks.slack.com/')) {
       error('Please enter a valid Slack Incoming Webhook URL (starts with https://hooks.slack.com/)');
@@ -38,7 +30,7 @@ export const SlackModal: React.FC<SlackModalProps> = ({
       success('Slack connected successfully! Alerts will be sent to your channel.');
       onStatusUpdated();
     } catch (err) {
-      error((err as Error).message || 'Failed to connect Slack webhook');
+      error(err.message || 'Failed to connect Slack webhook');
     } finally {
       setIsSubmitting(false);
     }
@@ -54,7 +46,7 @@ export const SlackModal: React.FC<SlackModalProps> = ({
         error(res.message || 'Slack test failed');
       }
     } catch (err) {
-      error((err as Error).message || 'Failed to test Slack connection');
+      error(err.message || 'Failed to test Slack connection');
     } finally {
       setIsTesting(false);
     }
@@ -66,7 +58,7 @@ export const SlackModal: React.FC<SlackModalProps> = ({
       info('Slack workspace disconnected.');
       onStatusUpdated();
     } catch (err) {
-      error((err as Error).message || 'Failed to disconnect Slack');
+      error(err.message || 'Failed to disconnect Slack');
     }
   };
 

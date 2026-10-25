@@ -1,22 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User } from '../types';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useToast } from './ToastContext';
 
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  loginWithGoogleCredential: (credential: string) => Promise<void>;
-  loginDemoUser: (name?: string, email?: string) => Promise<void>;
-  logout: () => void;
-}
+const AuthContext = createContext(undefined);
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { success, error } = useToast();
 
   useEffect(() => {
@@ -38,14 +28,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     checkAuth();
   }, []);
 
-  const loginWithGoogleCredential = async (credential: string) => {
+  const loginWithGoogleCredential = async (credential) => {
     setIsLoading(true);
     try {
       const data = await api.loginWithGoogle(credential);
       setUser(data.user);
       success(`Welcome back, ${data.user.name || 'ReachInbox Lead'}!`);
     } catch (err) {
-      error((err as Error).message || 'Failed to authenticate with Google');
+      error(err.message || 'Failed to authenticate with Google');
     } finally {
       setIsLoading(false);
     }
@@ -62,7 +52,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(data.user);
       success(`Logged in as demo user: ${name}`);
     } catch (err) {
-      error((err as Error).message || 'Failed to login as demo user');
+      error(err.message || 'Failed to login as demo user');
     } finally {
       setIsLoading(false);
     }

@@ -1,37 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, UploadCloud, Calendar, Clock, Gauge, Mail, AlertCircle, FileText, CheckCircle } from 'lucide-react';
-import { SenderProfile, SchedulePayload } from '../types';
+import { X, UploadCloud, Calendar, Clock, Gauge, Mail, CheckCircle } from 'lucide-react';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
 
-interface ComposeModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onScheduledSuccess: () => void;
-}
-
-export const ComposeModal: React.FC<ComposeModalProps> = ({ isOpen, onClose, onScheduledSuccess }) => {
+export const ComposeModal = ({ isOpen, onClose, onScheduledSuccess }) => {
   const { success, error } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef(null);
 
   // Form State
-  const [senders, setSenders] = useState<SenderProfile[]>([]);
-  const [selectedSender, setSelectedSender] = useState<string>('sales@reachinbox.test');
-  const [subject, setSubject] = useState<string>('');
-  const [body, setBody] = useState<string>('');
-  const [rawRecipientsText, setRawRecipientsText] = useState<string>('');
-  const [parsedRecipients, setParsedRecipients] = useState<string[]>([]);
-  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [senders, setSenders] = useState([]);
+  const [selectedSender, setSelectedSender] = useState('sales@reachinbox.test');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [rawRecipientsText, setRawRecipientsText] = useState('');
+  const [parsedRecipients, setParsedRecipients] = useState([]);
+  const [uploadedFileName, setUploadedFileName] = useState(null);
 
   // Scheduling options
-  const [startTime, setStartTime] = useState<string>(() => {
-    // Default to 1 minute in the future
+  const [startTime, setStartTime] = useState(() => {
     const d = new Date(Date.now() + 60000);
     return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   });
-  const [delayBetweenEmails, setDelayBetweenEmails] = useState<number>(2); // seconds
-  const [hourlyLimit, setHourlyLimit] = useState<number>(50); // emails per hour
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [delayBetweenEmails, setDelayBetweenEmails] = useState(2); // seconds
+  const [hourlyLimit, setHourlyLimit] = useState(50); // emails per hour
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load available senders
   useEffect(() => {
@@ -47,22 +39,21 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({ isOpen, onClose, onS
   }, [isOpen]);
 
   // Parse text or CSV content into clean unique email list
-  const extractEmails = (text: string): string[] => {
+  const extractEmails = (text) => {
     const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi;
     const matches = text.match(emailRegex) || [];
-    // Deduplicate and trim
     return Array.from(new Set(matches.map((e) => e.toLowerCase().trim())));
   };
 
   // Recipient input change
-  const handleRecipientsChange = (val: string) => {
+  const handleRecipientsChange = (val) => {
     setRawRecipientsText(val);
     const emails = extractEmails(val);
     setParsedRecipients(emails);
   };
 
   // Handle CSV/text file upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -90,7 +81,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({ isOpen, onClose, onS
     reader.readAsText(file);
   };
 
-  const handleScheduleSubmit = async (e: React.FormEvent) => {
+  const handleScheduleSubmit = async (e) => {
     e.preventDefault();
 
     if (parsedRecipients.length === 0) {
@@ -111,7 +102,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({ isOpen, onClose, onS
     setIsSubmitting(true);
 
     try {
-      const payload: SchedulePayload = {
+      const payload = {
         recipients: parsedRecipients,
         senderEmail: selectedSender,
         subject: subject.trim(),
@@ -133,7 +124,7 @@ export const ComposeModal: React.FC<ComposeModalProps> = ({ isOpen, onClose, onS
       onScheduledSuccess();
       onClose();
     } catch (err) {
-      error((err as Error).message || 'Failed to schedule emails.');
+      error(err.message || 'Failed to schedule emails.');
     } finally {
       setIsSubmitting(false);
     }

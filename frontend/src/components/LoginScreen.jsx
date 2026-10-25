@@ -3,7 +3,7 @@ import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 import { Mail, Clock, ShieldCheck, Zap } from 'lucide-react';
 
-export const LoginScreen: React.FC = () => {
+export const LoginScreen = () => {
   const { loginWithGoogleCredential, loginDemoUser } = useAuth();
 
   return (

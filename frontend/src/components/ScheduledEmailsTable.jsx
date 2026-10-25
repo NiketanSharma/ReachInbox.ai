@@ -1,19 +1,8 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { Clock, AlertTriangle, Trash2, CalendarCheck, RefreshCw, Search } from 'lucide-react';
-import { EmailJob } from '../types';
 
-interface ScheduledEmailsTableProps {
-  emails: EmailJob[];
-  isLoading: boolean;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  onCancelEmail: (id: string) => void;
-  onRefresh: () => void;
-  onComposeClick: () => void;
-}
-
-export const ScheduledEmailsTable: React.FC<ScheduledEmailsTableProps> = ({
+export const ScheduledEmailsTable = ({
   emails,
   isLoading,
   searchQuery,
@@ -22,7 +11,7 @@ export const ScheduledEmailsTable: React.FC<ScheduledEmailsTableProps> = ({
   onRefresh,
   onComposeClick,
 }) => {
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status) => {
     switch (status) {
       case 'PROCESSING':
         return (

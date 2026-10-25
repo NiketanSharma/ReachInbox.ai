@@ -1,27 +1,12 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
-export type ToastType = 'success' | 'error' | 'info' | 'warning';
+const ToastContext = createContext(undefined);
 
-interface Toast {
-  id: string;
-  type: ToastType;
-  message: string;
-}
+export const ToastProvider = ({ children }) => {
+  const [toasts, setToasts] = useState([]);
 
-interface ToastContextType {
-  toast: (message: string, type?: ToastType) => void;
-  success: (message: string) => void;
-  error: (message: string) => void;
-  info: (message: string) => void;
-}
-
-const ToastContext = createContext<ToastContextType | undefined>(undefined);
-
-export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const addToast = (message: string, type: ToastType = 'info') => {
+  const addToast = (message, type = 'info') => {
     const id = Math.random().toString(36).substring(2, 9);
     setToasts((prev) => [...prev, { id, type, message }]);
 
@@ -30,7 +15,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }, 4000);
   };
 
-  const removeToast = (id: string) => {
+  const removeToast = (id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 

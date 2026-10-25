@@ -7,29 +7,28 @@ import { SentEmailsTable } from './components/SentEmailsTable';
 import { ComposeModal } from './components/ComposeModal';
 import { SlackModal } from './components/SlackModal';
 import { api } from './services/api';
-import { EmailJob, SlackStatus } from './types';
 import { useToast } from './context/ToastContext';
-import { Plus, Clock, CheckCircle2, Users, Layers, Activity } from 'lucide-react';
+import { Plus, Clock, CheckCircle2, Users, Activity } from 'lucide-react';
 
-export const App: React.FC = () => {
+export const App = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { error, info } = useToast();
 
   // Active Tab: 'scheduled' | 'sent'
-  const [activeTab, setActiveTab] = useState<'scheduled' | 'sent'>('scheduled');
+  const [activeTab, setActiveTab] = useState('scheduled');
 
   // Modals
-  const [isComposeOpen, setIsComposeOpen] = useState<boolean>(false);
-  const [isSlackModalOpen, setIsSlackModalOpen] = useState<boolean>(false);
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [isSlackModalOpen, setIsSlackModalOpen] = useState(false);
 
   // Data
-  const [scheduledEmails, setScheduledEmails] = useState<EmailJob[]>([]);
-  const [sentEmails, setSentEmails] = useState<EmailJob[]>([]);
-  const [totalScheduled, setTotalScheduled] = useState<number>(0);
-  const [totalSent, setTotalSent] = useState<number>(0);
-  const [isLoadingList, setIsLoadingList] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [slackStatus, setSlackStatus] = useState<SlackStatus | null>(null);
+  const [scheduledEmails, setScheduledEmails] = useState([]);
+  const [sentEmails, setSentEmails] = useState([]);
+  const [totalScheduled, setTotalScheduled] = useState(0);
+  const [totalSent, setTotalSent] = useState(0);
+  const [isLoadingList, setIsLoadingList] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [slackStatus, setSlackStatus] = useState(null);
 
   // Fetch Scheduled Emails
   const fetchScheduled = useCallback(async (query = '') => {
@@ -109,13 +108,13 @@ export const App: React.FC = () => {
   }, [searchQuery, activeTab, fetchScheduled, fetchSent]);
 
   // Cancel Scheduled Email
-  const handleCancelEmail = async (id: string) => {
+  const handleCancelEmail = async (id) => {
     try {
       await api.cancelScheduledEmail(id);
       info('Scheduled job cancelled');
       fetchScheduled(searchQuery);
     } catch (err) {
-      error((err as Error).message || 'Failed to cancel email job');
+      error(err.message || 'Failed to cancel email job');
     }
   };
 

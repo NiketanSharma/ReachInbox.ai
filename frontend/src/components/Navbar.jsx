@@ -1,14 +1,8 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, Activity, MessageSquare, ExternalLink } from 'lucide-react';
-import { SlackStatus } from '../types';
 
-interface NavbarProps {
-  slackStatus: SlackStatus | null;
-  onOpenSlackModal: () => void;
-}
-
-export const Navbar: React.FC<NavbarProps> = ({ slackStatus, onOpenSlackModal }) => {
+export const Navbar = ({ slackStatus, onOpenSlackModal }) => {
   const { user, logout } = useAuth();
 
   return (
@@ -21,7 +15,9 @@ export const Navbar: React.FC<NavbarProps> = ({ slackStatus, onOpenSlackModal })
               R
             </div>
             <div>
-              <span className="font-bold text-slate-900 tracking-tight text-lg">ReachInbox<span className="text-brand-600">.ai</span></span>
+              <span className="font-bold text-slate-900 tracking-tight text-lg">
+                ReachInbox<span className="text-brand-600">.ai</span>
+              </span>
               <span className="hidden sm:inline-block ml-2 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider bg-brand-50 text-brand-700 rounded-full border border-brand-200">
                 Scheduler
               </span>
