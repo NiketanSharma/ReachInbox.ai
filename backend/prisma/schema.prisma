@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String             @id @default(uuid())
+  email     String             @unique
+  name      String?
+  avatar    String?
+  googleId  String?            @unique
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  emails    EmailJob[]
+  slack     SlackIntegration?
+}
+
+model SlackIntegration {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId      String?
+  teamName    String?
+  webhookUrl  String?
+  accessToken String?
+  channel     String?
+  channelId   String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SenderAccount {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  smtpHost  String
+  smtpPort  Int
+  smtpUser  String
+  smtpPass  String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model EmailJob {
+  id                 String    @id @default(uuid())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  senderEmail        String
+  recipientEmail     String
+  subject            String
+  body               String
+  scheduledAt        DateTime
+  sentAt             DateTime?
+  status             String    @default("SCHEDULED")
+  bullJobId          String?   @unique
+  etherealMessageId  String?
+  etherealPreviewUrl String?
+  delayBetweenEmails Int       @default(2000)
+  hourlyLimit        Int       @default(50)
+  retryCount         Int       @default(0)
+  lastError          String?
+  batchId            String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([senderEmail])
+}
