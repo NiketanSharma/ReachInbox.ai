@@ -25,7 +25,6 @@ export const App = () => {
   const [totalScheduled, setTotalScheduled] = useState(0);
   const [totalSent, setTotalSent] = useState(0);
   const [isLoadingList, setIsLoadingList] = useState(false);
-  const [isQuickSending, setIsQuickSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [slackStatus, setSlackStatus] = useState(null);
 
@@ -164,31 +163,6 @@ export const App = () => {
     return () => clearInterval(interval);
   }, [activeTab, searchQuery, fetchScheduled, fetchSent, fetchRateLimitStatus]);
 
-  // 1-Click Fast Instant Test Email Dispatch
-  const handleQuickSend = async () => {
-    setIsQuickSending(true);
-    try {
-      const randomLead = `lead_${Math.floor(Math.random() * 1000)}@techcorp.io`;
-      await api.scheduleEmails({
-        recipients: [randomLead],
-        senderEmail: 'sales@reachinbox.test',
-        subject: `Live Test Sequence #${Math.floor(Math.random() * 900 + 100)}`,
-        body: 'Testing live Ethereal SMTP delivery and BullMQ queue processing via ReachInbox scheduler.',
-        startTime: new Date().toISOString(),
-        delayBetweenEmails: 0,
-        hourlyLimit: 50,
-      });
-      success(`Dispatched instant test email to ${randomLead}!`);
-      fetchScheduled('');
-      fetchSent('');
-      fetchRateLimitStatus();
-    } catch (err) {
-      error(err.message || 'Failed to dispatch quick test email');
-    } finally {
-      setIsQuickSending(false);
-    }
-  };
-
   // Reset Rate Limit (for live evaluation testing)
   const handleResetRateLimit = async () => {
     try {
@@ -246,16 +220,6 @@ export const App = () => {
 
           {/* Quick Actions */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={handleQuickSend}
-              disabled={isQuickSending}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold text-xs shadow-2xs hover:border-slate-300 transition active:scale-95 disabled:opacity-50"
-              title="Dispatches 1 test email instantly"
-            >
-              <Zap className={`w-3.5 h-3.5 text-amber-500 ${isQuickSending ? 'animate-bounce' : ''}`} />
-              <span>{isQuickSending ? 'Sending...' : '1-Click Quick Test'}</span>
-            </button>
-
             <button
               onClick={() => setIsComposeOpen(true)}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-brand-600 via-indigo-600 to-violet-600 hover:from-brand-700 hover:to-violet-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-brand-500/25 hover:shadow-lg hover:shadow-brand-500/35 transition transform active:scale-95"
