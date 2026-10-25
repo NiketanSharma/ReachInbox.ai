@@ -155,10 +155,10 @@ export class ElasticsearchService {
 
     if (query && query.trim().length > 0) {
       where.OR = [
-        { subject: { contains: query, mode: 'insensitive' } },
-        { recipientEmail: { contains: query, mode: 'insensitive' } },
-        { senderEmail: { contains: query, mode: 'insensitive' } },
-        { body: { contains: query, mode: 'insensitive' } },
+        { subject: { contains: query } },
+        { recipientEmail: { contains: query } },
+        { senderEmail: { contains: query } },
+        { body: { contains: query } },
       ];
     }
 
