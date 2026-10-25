@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
+import { LoginScreen } from './components/LoginScreen';
 import { ScheduledEmailsTable } from './components/ScheduledEmailsTable';
 import { SentEmailsTable } from './components/SentEmailsTable';
 import { ComposeModal } from './components/ComposeModal';
 import { SlackModal } from './components/SlackModal';
 import { api } from './services/api';
 import { useToast } from './context/ToastContext';
-import { Plus, Clock, CheckCircle2, Users, Activity, Zap, RefreshCw, RotateCcw } from 'lucide-react';
+import { Plus, Clock, CheckCircle2 } from 'lucide-react';
 
 export const App = () => {
-  const { success, error, info } = useToast();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { error, info } = useToast();
 
   // Active Tab: 'scheduled' | 'sent'
   const [activeTab, setActiveTab] = useState('scheduled');
@@ -21,15 +24,11 @@ export const App = () => {
   // Email Data
   const [scheduledEmails, setScheduledEmails] = useState([]);
   const [sentEmails, setSentEmails] = useState([]);
-  const [sendersList, setSendersList] = useState([]);
   const [totalScheduled, setTotalScheduled] = useState(0);
   const [totalSent, setTotalSent] = useState(0);
   const [isLoadingList, setIsLoadingList] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [slackStatus, setSlackStatus] = useState(null);
-
-  // Rate limit tracking for default sender
-  const [rateLimitInfo, setRateLimitInfo] = useState({ currentCount: 0, limit: 50, remaining: 50 });
 
   // Fetch Scheduled Emails
   const fetchScheduled = useCallback(async (query = '') => {
@@ -73,46 +72,22 @@ export const App = () => {
     }
   }, []);
 
-  // Fetch available senders dynamically
-  const fetchSenders = useCallback(async () => {
-    try {
-      const senders = await api.getSenders();
-      setSendersList(senders || []);
-    } catch (err) {
-      console.warn('Could not load senders list:', err);
-    }
-  }, []);
-
-  // Fetch Rate limit status
-  const fetchRateLimitStatus = useCallback(async () => {
-    try {
-      const res = await api.getRateLimitStatus('sales@reachinbox.test');
-      if (res) {
-        setRateLimitInfo({
-          currentCount: res.currentCount || 0,
-          limit: res.limit || 50,
-          remaining: res.remaining || 50,
-        });
-      }
-    } catch (err) {
-      console.warn('Could not fetch rate limit info:', err);
-    }
-  }, []);
-
   // Initial data loading
   useEffect(() => {
-    fetchSlackStatus();
-    fetchSenders();
-    fetchRateLimitStatus();
-    if (activeTab === 'scheduled') {
-      fetchScheduled('');
-    } else {
-      fetchSent('');
+    if (isAuthenticated) {
+      fetchSlackStatus();
+      if (activeTab === 'scheduled') {
+        fetchScheduled('');
+      } else {
+        fetchSent('');
+      }
     }
-  }, [activeTab, fetchScheduled, fetchSent, fetchSlackStatus, fetchSenders, fetchRateLimitStatus]);
+  }, [isAuthenticated, activeTab, fetchScheduled, fetchSent, fetchSlackStatus]);
 
   // Google-Search style Instant Search as each alphabet is typed
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     const timer = setTimeout(() => {
       if (activeTab === 'scheduled') {
         fetchScheduled(searchQuery.trim());
@@ -122,7 +97,7 @@ export const App = () => {
     }, 120);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, activeTab, fetchScheduled, fetchSent]);
+  }, [searchQuery, activeTab, isAuthenticated, fetchScheduled, fetchSent]);
 
   // Instant 0ms In-Memory Filter on Keystroke
   const displayedScheduledEmails = useMemo(() => {
@@ -149,7 +124,7 @@ export const App = () => {
 
   // Periodic polling for status updates (every 5s when not searching)
   useEffect(() => {
-    if (searchQuery.trim()) return;
+    if (!isAuthenticated || searchQuery.trim()) return;
 
     const interval = setInterval(() => {
       if (activeTab === 'scheduled') {
@@ -157,22 +132,10 @@ export const App = () => {
       } else {
         fetchSent('');
       }
-      fetchRateLimitStatus();
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [activeTab, searchQuery, fetchScheduled, fetchSent, fetchRateLimitStatus]);
-
-  // Reset Rate Limit (for live evaluation testing)
-  const handleResetRateLimit = async () => {
-    try {
-      await api.resetRateLimit('sales@reachinbox.test');
-      success('Hourly rate limit counter reset for sales@reachinbox.test');
-      fetchRateLimitStatus();
-    } catch (err) {
-      error(err.message || 'Failed to reset rate limit');
-    }
-  };
+  }, [isAuthenticated, activeTab, searchQuery, fetchScheduled, fetchSent]);
 
   // Cancel Scheduled Email
   const handleCancelEmail = async (id) => {
@@ -185,198 +148,48 @@ export const App = () => {
     }
   };
 
-  // Rate limit percentage
-  const rateLimitPercent = Math.min(
-    100,
-    Math.round(((rateLimitInfo.currentCount || 0) / (rateLimitInfo.limit || 50)) * 100)
-  );
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+        <div className="w-8 h-8 border-3 border-brand-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
+  // 1️⃣ Google Login screen if unauthenticated (Matches Figma)
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
+
+  // 2️⃣ Main Dashboard (Matches Figma Layout)
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans selection:bg-brand-500 selection:text-white">
-      {/* Top Navigation */}
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
+      {/* Top Header (User info + avatar + logout) */}
       <Navbar
         slackStatus={slackStatus}
         onOpenSlackModal={() => setIsSlackModalOpen(true)}
       />
 
-      {/* Main Workspace */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Hero Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 mb-8">
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                ● Persistent Scheduler
-              </span>
-              <span className="text-xs text-slate-400 font-medium">· Redis + BullMQ (Zero Cron)</span>
-            </div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              Email Sequence Dispatcher
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
-              Automate multi-sender sequences with provider throttling, distributed hourly rate limiting, and real-time Elasticsearch search.
-            </p>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsComposeOpen(true)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-brand-600 via-indigo-600 to-violet-600 hover:from-brand-700 hover:to-violet-700 text-white font-bold text-xs sm:text-sm shadow-md shadow-brand-500/25 hover:shadow-lg hover:shadow-brand-500/35 transition transform active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Compose New Email</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Interactive Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {/* Card 1: Queued in BullMQ */}
-          <div
-            onClick={() => setActiveTab('scheduled')}
-            className={`p-5 rounded-3xl border transition-all cursor-pointer transform hover:-translate-y-0.5 ${
-              activeTab === 'scheduled'
-                ? 'bg-white border-brand-500/80 shadow-md shadow-brand-500/10'
-                : 'bg-white/80 hover:bg-white border-slate-200 shadow-2xs'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Scheduled in Queue</span>
-              <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-                <Clock className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="text-3xl font-extrabold text-slate-900">{totalScheduled}</div>
-            <div className="text-[11px] text-purple-600 font-semibold mt-1 flex items-center gap-1">
-              <span>● Waiting for dispatch time</span>
-            </div>
-          </div>
-
-          {/* Card 2: Delivered via Ethereal */}
-          <div
-            onClick={() => setActiveTab('sent')}
-            className={`p-5 rounded-3xl border transition-all cursor-pointer transform hover:-translate-y-0.5 ${
-              activeTab === 'sent'
-                ? 'bg-white border-emerald-500/80 shadow-md shadow-emerald-500/10'
-                : 'bg-white/80 hover:bg-white border-slate-200 shadow-2xs'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Delivered via Ethereal</span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                <CheckCircle2 className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="text-3xl font-extrabold text-slate-900">{totalSent}</div>
-            <div className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
-              <span>✓ Verified Ethereal SMTP</span>
-            </div>
-          </div>
-
-          {/* Card 3: Configured Senders */}
-          <div
-            className="p-5 rounded-3xl bg-white border border-slate-200 shadow-2xs hover:shadow-xs transition transform hover:-translate-y-0.5"
-            title={sendersList.map((s) => `${s.name} (${s.email})`).join('\n')}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Configured Senders</span>
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                <Users className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="text-3xl font-extrabold text-slate-900">
-              {sendersList.length || 1}
-            </div>
-            <div className="text-[11px] text-blue-600 font-semibold mt-1 truncate">
-              {sendersList[0]?.email || 'sales@reachinbox.test'}
-            </div>
-          </div>
-
-          {/* Card 4: Worker Engine */}
-          <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-2xs hover:shadow-xs transition transform hover:-translate-y-0.5">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">BullMQ Worker</span>
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                <Activity className="w-4 h-4 text-indigo-600" />
-              </div>
-            </div>
-            <div className="text-xl font-extrabold text-slate-900 mt-1 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>5 Concurrency</span>
-            </div>
-            <div className="text-[11px] text-slate-400 font-semibold mt-1">
-              Delayed Sorted Set Listener
-            </div>
-          </div>
-        </div>
-
-        {/* Live Hourly Rate Limit Banner */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-2xs mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold flex-shrink-0">
-              <Zap className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                <span>Sender Hourly Throttling Health:</span>
-                <span className="font-mono text-slate-500 font-medium">sales@reachinbox.test</span>
-              </div>
-              <div className="text-[11px] text-slate-500 mt-0.5">
-                Sent <strong className="text-slate-800">{rateLimitInfo.currentCount}</strong> of <strong className="text-slate-800">{rateLimitInfo.limit}</strong> max allowed emails in active 1-hour window.
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 sm:w-64">
-            <div className="flex-1">
-              <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase mb-1">
-                <span>Usage</span>
-                <span>{rateLimitPercent}%</span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-500 rounded-full ${
-                    rateLimitPercent > 80 ? 'bg-rose-500' : rateLimitPercent > 50 ? 'bg-amber-500' : 'bg-brand-500'
-                  }`}
-                  style={{ width: `${rateLimitPercent}%` }}
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={handleResetRateLimit}
-              title="Reset hourly counter for demo testing"
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Tabs Bar */}
-        <div className="flex items-center justify-between border-b border-slate-200 mb-6">
-          <div className="flex items-center gap-3">
+      {/* Main Workspace Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-7">
+        {/* Figma Header Action Bar: Tabs on Left, "Compose New Email" on Right */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          {/* Section Tabs */}
+          <div className="flex items-center gap-2 border-b border-slate-200 sm:border-b-0 pb-2 sm:pb-0">
             <button
               onClick={() => {
                 setActiveTab('scheduled');
                 setSearchQuery('');
               }}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 transition -mb-px ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition ${
                 activeTab === 'scheduled'
-                  ? 'border-brand-600 text-brand-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-900'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/70'
               }`}
             >
-              <Clock className="w-4 h-4" />
+              <Clock className="w-4 h-4 text-brand-600" />
               <span>Scheduled Emails</span>
-              <span
-                className={`px-2.5 py-0.5 text-xs rounded-full font-bold ${
-                  activeTab === 'scheduled'
-                    ? 'bg-brand-50 text-brand-700 border border-brand-200'
-                    : 'bg-slate-100 text-slate-600'
-                }`}
-              >
+              <span className="px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-700 font-semibold">
                 {totalScheduled}
               </span>
             </button>
@@ -386,28 +199,31 @@ export const App = () => {
                 setActiveTab('sent');
                 setSearchQuery('');
               }}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 transition -mb-px ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition ${
                 activeTab === 'sent'
-                  ? 'border-brand-600 text-brand-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-900'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/70'
               }`}
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Delivered Emails</span>
-              <span
-                className={`px-2.5 py-0.5 text-xs rounded-full font-bold ${
-                  activeTab === 'sent'
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    : 'bg-slate-100 text-slate-600'
-                }`}
-              >
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              <span>Sent Emails</span>
+              <span className="px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-700 font-semibold">
                 {totalSent}
               </span>
             </button>
           </div>
+
+          {/* Primary "Compose New Email" button */}
+          <button
+            onClick={() => setIsComposeOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-sm transition transform active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Compose New Email</span>
+          </button>
         </div>
 
-        {/* Active Tab View */}
+        {/* Active Tab Table */}
         {activeTab === 'scheduled' ? (
           <ScheduledEmailsTable
             emails={displayedScheduledEmails}
@@ -430,14 +246,13 @@ export const App = () => {
         )}
       </main>
 
-      {/* Compose Sequence Modal */}
+      {/* Compose Email Modal */}
       <ComposeModal
         isOpen={isComposeOpen}
         onClose={() => setIsComposeOpen(false)}
         onScheduledSuccess={() => {
           setActiveTab('scheduled');
           fetchScheduled('');
-          fetchRateLimitStatus();
         }}
       />
 
