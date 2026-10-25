@@ -1,78 +1,33 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { api } from '../services/api';
+import React, { createContext, useContext, useState } from 'react';
 import { useToast } from './ToastContext';
+
+const defaultUser = {
+  id: 'usr_reachinbox_default',
+  name: 'Niketan Sharma',
+  email: 'niketan@reachinbox.ai',
+  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop&crop=faces',
+  role: 'Growth Engineer',
+};
 
 const AuthContext = createContext(undefined);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const { success, error } = useToast();
+  const [user, setUser] = useState(defaultUser);
+  const [isLoading] = useState(false);
+  const { info } = useToast();
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem('reachinbox_token');
-      if (token) {
-        try {
-          const currentUser = await api.getCurrentUser();
-          setUser(currentUser);
-        } catch (err) {
-          console.warn('Session expired or invalid, logging out:', err);
-          api.logout();
-          setUser(null);
-        }
-      }
-      setIsLoading(false);
-    };
-
-    checkAuth();
-  }, []);
-
-  const loginWithGoogleCredential = async (credential) => {
-    setIsLoading(true);
-    try {
-      const data = await api.loginWithGoogle(credential);
-      setUser(data.user);
-      success(`Welcome back, ${data.user.name || 'ReachInbox Lead'}!`);
-    } catch (err) {
-      error(err.message || 'Failed to authenticate with Google');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loginDemoUser = async (name = 'Niketan Sharma', email = 'niketan@reachinbox.ai') => {
-    setIsLoading(true);
-    try {
-      const data = await api.loginWithGoogle(undefined, {
-        name,
-        email,
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&h=120&fit=crop&crop=faces',
-      });
-      setUser(data.user);
-      success(`Logged in as demo user: ${name}`);
-    } catch (err) {
-      error(err.message || 'Failed to login as demo user');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logout = () => {
-    api.logout();
-    setUser(null);
-    success('Logged out successfully');
+  const updateUser = (updates) => {
+    setUser((prev) => ({ ...prev, ...updates }));
+    info('User profile updated');
   };
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: !!user,
+        isAuthenticated: true,
         isLoading,
-        loginWithGoogleCredential,
-        loginDemoUser,
-        logout,
+        updateUser,
       }}
     >
       {children}
