@@ -10,7 +10,7 @@ export function setupBullBoard() {
   const emailQueue = getEmailQueue();
 
   createBullBoard({
-    queues: [new BullMQAdapter(emailQueue)],
+    queues: [new BullMQAdapter(emailQueue as any) as any],
     serverAdapter,
   });
 
