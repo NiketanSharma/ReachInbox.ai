@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { LoginScreen } from './components/LoginScreen';
@@ -21,7 +21,7 @@ export const App = () => {
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [isSlackModalOpen, setIsSlackModalOpen] = useState(false);
 
-  // Data
+  // Email Data
   const [scheduledEmails, setScheduledEmails] = useState([]);
   const [sentEmails, setSentEmails] = useState([]);
   const [totalScheduled, setTotalScheduled] = useState(0);
@@ -30,13 +30,15 @@ export const App = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [slackStatus, setSlackStatus] = useState(null);
 
-  // Fetch Scheduled Emails
+  // Fetch Scheduled Emails from Backend
   const fetchScheduled = useCallback(async (query = '') => {
     try {
-      setIsLoadingList(true);
+      if (!query) setIsLoadingList(true);
       const data = await api.getScheduledEmails({ search: query });
       setScheduledEmails(data.emails || []);
-      setTotalScheduled(data.total || (data.emails ? data.emails.length : 0));
+      if (!query) {
+        setTotalScheduled(data.total || (data.emails ? data.emails.length : 0));
+      }
     } catch (err) {
       console.warn('Could not load scheduled emails:', err);
     } finally {
@@ -44,13 +46,15 @@ export const App = () => {
     }
   }, []);
 
-  // Fetch Sent Emails
+  // Fetch Sent Emails from Backend
   const fetchSent = useCallback(async (query = '') => {
     try {
-      setIsLoadingList(true);
+      if (!query) setIsLoadingList(true);
       const data = await api.getSentEmails({ search: query });
       setSentEmails(data.emails || []);
-      setTotalSent(data.total || (data.emails ? data.emails.length : 0));
+      if (!query) {
+        setTotalSent(data.total || (data.emails ? data.emails.length : 0));
+      }
     } catch (err) {
       console.warn('Could not load sent emails:', err);
     } finally {
@@ -68,44 +72,72 @@ export const App = () => {
     }
   }, []);
 
-  // Initial and reactive data loading
+  // Initial data loading on authentication
   useEffect(() => {
     if (isAuthenticated) {
       fetchSlackStatus();
       if (activeTab === 'scheduled') {
-        fetchScheduled(searchQuery);
+        fetchScheduled('');
       } else {
-        fetchSent(searchQuery);
+        fetchSent('');
       }
     }
   }, [isAuthenticated, activeTab, fetchScheduled, fetchSent, fetchSlackStatus]);
 
-  // Periodic polling to update sent status live when emails finish sending in BullMQ
+  // Google-Search style Instant Search:
+  // Fires backend query as each alphabet is typed with an ultra-responsive 120ms debounce
   useEffect(() => {
     if (!isAuthenticated) return;
+
+    const timer = setTimeout(() => {
+      if (activeTab === 'scheduled') {
+        fetchScheduled(searchQuery.trim());
+      } else {
+        fetchSent(searchQuery.trim());
+      }
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, activeTab, isAuthenticated, fetchScheduled, fetchSent]);
+
+  // Instant In-Memory Filter:
+  // Gives immediate 0ms visual feedback on each keystroke for already-loaded items
+  const displayedScheduledEmails = useMemo(() => {
+    if (!searchQuery.trim()) return scheduledEmails;
+    const q = searchQuery.toLowerCase().trim();
+    return scheduledEmails.filter((item) =>
+      (item.recipientEmail && item.recipientEmail.toLowerCase().includes(q)) ||
+      (item.senderEmail && item.senderEmail.toLowerCase().includes(q)) ||
+      (item.subject && item.subject.toLowerCase().includes(q)) ||
+      (item.body && item.body.toLowerCase().includes(q))
+    );
+  }, [scheduledEmails, searchQuery]);
+
+  const displayedSentEmails = useMemo(() => {
+    if (!searchQuery.trim()) return sentEmails;
+    const q = searchQuery.toLowerCase().trim();
+    return sentEmails.filter((item) =>
+      (item.recipientEmail && item.recipientEmail.toLowerCase().includes(q)) ||
+      (item.senderEmail && item.senderEmail.toLowerCase().includes(q)) ||
+      (item.subject && item.subject.toLowerCase().includes(q)) ||
+      (item.body && item.body.toLowerCase().includes(q))
+    );
+  }, [sentEmails, searchQuery]);
+
+  // Periodic polling for status updates (only when not actively searching)
+  useEffect(() => {
+    if (!isAuthenticated || searchQuery.trim()) return;
+
     const interval = setInterval(() => {
       if (activeTab === 'scheduled') {
-        fetchScheduled(searchQuery);
+        fetchScheduled('');
       } else {
-        fetchSent(searchQuery);
+        fetchSent('');
       }
-    }, 6000); // 6 seconds
+    }, 6000);
 
     return () => clearInterval(interval);
   }, [isAuthenticated, activeTab, searchQuery, fetchScheduled, fetchSent]);
-
-  // Handle Search Input Debounce
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      if (activeTab === 'scheduled') {
-        fetchScheduled(searchQuery);
-      } else {
-        fetchSent(searchQuery);
-      }
-    }, 350);
-
-    return () => clearTimeout(handler);
-  }, [searchQuery, activeTab, fetchScheduled, fetchSent]);
 
   // Cancel Scheduled Email
   const handleCancelEmail = async (id) => {
@@ -260,7 +292,7 @@ export const App = () => {
         {/* Active Tab View */}
         {activeTab === 'scheduled' ? (
           <ScheduledEmailsTable
-            emails={scheduledEmails}
+            emails={displayedScheduledEmails}
             isLoading={isLoadingList}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -270,7 +302,7 @@ export const App = () => {
           />
         ) : (
           <SentEmailsTable
-            emails={sentEmails}
+            emails={displayedSentEmails}
             isLoading={isLoadingList}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -286,7 +318,7 @@ export const App = () => {
         onClose={() => setIsComposeOpen(false)}
         onScheduledSuccess={() => {
           setActiveTab('scheduled');
-          fetchScheduled();
+          fetchScheduled('');
         }}
       />
 

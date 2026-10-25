@@ -112,12 +112,48 @@ export class ElasticsearchService {
           mustClauses.push({ term: { status } });
         }
 
-        // Multi-match text query across subject, recipient, sender, and body
+        const trimmed = query.trim().toLowerCase();
+        const wildcardPattern = `*${trimmed}*`;
+
+        // Match-as-you-type: combines phrase prefix and wildcard queries so every alphabet matches instantly
         mustClauses.push({
-          multi_match: {
-            query,
-            fields: ['subject^3', 'recipientEmail^2', 'senderEmail', 'body'],
-            fuzziness: 'AUTO',
+          bool: {
+            should: [
+              {
+                multi_match: {
+                  query: trimmed,
+                  type: 'phrase_prefix',
+                  fields: ['subject^4', 'recipientEmail^4', 'senderEmail^2', 'body'],
+                  slop: 3,
+                },
+              },
+              {
+                wildcard: {
+                  'recipientEmail.keyword': {
+                    value: wildcardPattern,
+                    boost: 3,
+                    case_insensitive: true,
+                  },
+                },
+              },
+              {
+                wildcard: {
+                  'senderEmail.keyword': {
+                    value: wildcardPattern,
+                    boost: 2,
+                    case_insensitive: true,
+                  },
+                },
+              },
+              {
+                query_string: {
+                  query: `*${trimmed}*`,
+                  fields: ['subject^3', 'recipientEmail^3', 'senderEmail', 'body'],
+                  analyze_wildcard: true,
+                },
+              },
+            ],
+            minimum_should_match: 1,
           },
         });
 

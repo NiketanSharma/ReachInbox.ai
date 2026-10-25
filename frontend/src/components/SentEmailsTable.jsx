@@ -1,6 +1,7 @@
 import React from 'react';
 import { format } from 'date-fns';
-import { CheckCircle2, XCircle, ExternalLink, RefreshCw, Search, Inbox } from 'lucide-react';
+import { CheckCircle2, XCircle, ExternalLink, RefreshCw, Search, Inbox, X } from 'lucide-react';
+import { HighlightText } from './HighlightText';
 
 export const SentEmailsTable = ({
   emails,
@@ -20,12 +21,27 @@ export const SentEmailsTable = ({
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search sent emails (Elasticsearch indexed)..."
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition"
+            placeholder="Type to search as you type (Google search style)..."
+            className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition"
           />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition"
+              title="Clear search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
+          {searchQuery && (
+            <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+              {emails.length} match{emails.length === 1 ? '' : 'es'}
+            </span>
+          )}
+
           <button
             onClick={onRefresh}
             title="Refresh list"
@@ -41,20 +57,29 @@ export const SentEmailsTable = ({
       {isLoading ? (
         <div className="p-12 text-center">
           <div className="w-8 h-8 border-3 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-xs text-slate-500">Loading delivered emails from Ethereal SMTP...</p>
+          <p className="text-xs text-slate-500">Searching delivered emails live...</p>
         </div>
       ) : emails.length === 0 ? (
         <div className="p-12 text-center max-w-sm mx-auto">
           <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
             <Inbox className="w-6 h-6" />
           </div>
-          <h4 className="text-sm font-bold text-slate-800 mb-1">No sent emails recorded yet</h4>
+          <h4 className="text-sm font-bold text-slate-800 mb-1">
+            {searchQuery ? `No delivered emails matched "${searchQuery}"` : 'No sent emails recorded yet'}
+          </h4>
           <p className="text-xs text-slate-500 mb-5">
             {searchQuery
-              ? 'No sent records matched your search query.'
+              ? 'Try typing another alphabet or clear your search query.'
               : 'Emails will appear here once processed and dispatched via Ethereal SMTP.'}
           </p>
-          {!searchQuery && (
+          {searchQuery ? (
+            <button
+              onClick={() => onSearchChange('')}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition"
+            >
+              Clear Search
+            </button>
+          ) : (
             <button
               onClick={onComposeClick}
               className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-xl shadow-sm transition"
@@ -81,17 +106,17 @@ export const SentEmailsTable = ({
                 <tr key={email.id} className="hover:bg-slate-50/60 transition group">
                   {/* Recipient */}
                   <td className="py-3.5 px-4 sm:px-6 font-semibold text-slate-900">
-                    {email.recipientEmail}
+                    <HighlightText text={email.recipientEmail} query={searchQuery} />
                   </td>
 
                   {/* Sender */}
                   <td className="py-3.5 px-4 sm:px-6 text-slate-600 font-mono text-xs">
-                    {email.senderEmail}
+                    <HighlightText text={email.senderEmail} query={searchQuery} />
                   </td>
 
                   {/* Subject */}
                   <td className="py-3.5 px-4 sm:px-6 text-slate-700 max-w-xs truncate">
-                    {email.subject}
+                    <HighlightText text={email.subject} query={searchQuery} />
                   </td>
 
                   {/* Sent Time */}
